@@ -7,12 +7,12 @@ A crowd-powered traffic routing application for Kigali, Rwanda. Find the best ro
 ## Features
 
 ### 🗺️ Place-Based Search
-- **No road names needed!** Search by places like "Norrsken", "CHUK", "Nyabugogo"
+-Search by places like "Norrsken", "CHUK", "Nyabugogo", "road name"
 - Autocomplete suggestions with popular Kigali locations
 - Geocoding converts place names to coordinates automatically
 
 ### 🚗 Smart Route Finding
-- **Alternative Routes**: Get 2-3 route options with traffic analysis
+- **Alternative Routes**: Get over 1 road options trafiic analysis
 - **Traffic Summary**: See at a glance - "Avoids 1 heavy road · 2 medium · 5 light"
 - **Route Selection**: Click any route to see step-by-step directions
 - **Real-time Reports**: View recent traffic reports (last 10 minutes) or historical data
@@ -218,6 +218,7 @@ Users don't need to know road names. They search for places like "Norrsken" or "
 2. Converts to coordinates
 3. Routes between coordinates
 4. Maps coordinates back to road segments for traffic reports
+5.can also search by road names
 
 ### Route Selection & Directions
 - Click any route card to select it
@@ -230,15 +231,6 @@ Users don't need to know road names. They search for places like "Norrsken" or "
 - System automatically maps coordinates to nearest road
 - Recent reports (last 10 minutes) are prioritized
 - Historical data shown when no recent reports available
-
-## Popular Places in Kigali
-
-The app includes pre-configured popular places:
-- Norrsken House
-- CHUK (University Teaching Hospital)
-- Nyabugogo Bus Station
-- Kimironko Market
-- And more...
 
 ## Deployment
 
@@ -259,4 +251,6 @@ See `DEPLOYMENT_CHECKLIST.md` for detailed deployment instructions.
 
 ## License
 
-MIT
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+Copyright (c) 2025 Josiane Umunezero

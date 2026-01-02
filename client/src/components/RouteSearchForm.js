@@ -332,7 +332,7 @@ function RouteSearchForm({ onSearch, loading, onUseMyLocation }) {
             <input
               id="start"
               type="text"
-              placeholder="e.g., Norrsken, CHUK, Nyabugogo"
+              placeholder="e.g., Norrsken, CHUK, KN 4, KG 7 Ave"
               value={startQuery}
               onChange={(e) => {
                 setStartQuery(e.target.value);
@@ -382,6 +382,7 @@ function RouteSearchForm({ onSearch, loading, onUseMyLocation }) {
                     onClick={() => handleStartSelect(place)}
                   >
                     <div className="suggestion-name">
+                      {place.type === 'road' && '🛣️ '}
                       {place.type === 'cafe' && '☕ '}
                       {place.type === 'shop' && '🛒 '}
                       {place.type === 'school' && '🏫 '}
@@ -411,7 +412,7 @@ function RouteSearchForm({ onSearch, loading, onUseMyLocation }) {
             <input
               id="destination"
               type="text"
-              placeholder="e.g., Norrsken, CHUK, Nyabugogo"
+              placeholder="e.g., Norrsken, CHUK, KN 4, KG 7 Ave"
               value={endQuery}
               onChange={(e) => {
                 setEndQuery(e.target.value);
@@ -460,6 +461,7 @@ function RouteSearchForm({ onSearch, loading, onUseMyLocation }) {
                     onClick={() => handleEndSelect(place)}
                   >
                     <div className="suggestion-name">
+                      {place.type === 'road' && '🛣️ '}
                       {place.type === 'cafe' && '☕ '}
                       {place.type === 'shop' && '🛒 '}
                       {place.type === 'school' && '🏫 '}

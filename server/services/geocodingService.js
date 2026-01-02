@@ -16,12 +16,25 @@ const geocodingService = {
     'kagugu health center': { name: 'Kagugu Health Centre', lat: -1.9167, lng: 30.1000, address: 'Kagugu, Kigali' },
   },
 
+  // Helper function to detect if query looks like a road name
+  isRoadName(query) {
+    const lowerQuery = query.toLowerCase().trim();
+    // Patterns that indicate road names: KN, KG, DR, Road, Street, Avenue, Ave, St, etc.
+    const roadPatterns = [
+      /^(kn|kg|dr)\s*\d+/i,  // KN 4, KG 7, DR 12
+      /\b(road|street|avenue|ave|st|rd|blvd|boulevard|drive|dr|way|ln|lane)\b/i,
+      /^(kn|kg|dr)\s*\d+\s*(road|street|avenue|ave|st|rd)/i  // KN 4 Road, KG 7 Avenue
+    ];
+    return roadPatterns.some(pattern => pattern.test(lowerQuery));
+  },
+
   // Search for places using OSM Nominatim (real street names, businesses, landmarks, buildings)
   async searchPlaces(query) {
     const lowerQuery = query.toLowerCase().trim();
     if (!lowerQuery || lowerQuery.length < 1) return [];
 
     const results = [];
+    const isRoadQuery = this.isRoadName(query);
     
     // Check popular places first (fast lookup) - partial matching
     Object.entries(this.popularPlaces).forEach(([key, place]) => {
@@ -148,16 +161,26 @@ const geocodingService = {
           const address = place.address || {};
           const displayName = place.display_name || '';
           
-          // Extract name - try multiple sources in order of preference
-          // Check all possible name fields to catch places like "Makuza Peace Plaza"
-          let placeName = place.name || 
-                         place.namedetails?.name || 
-                         place.namedetails?.['name:en'] ||
-                         (place.extratags && (place.extratags.name || place.extratags['name:en'])) ||
-                         (place.address && (place.address.building || place.address.amenity || place.address.shop)) ||
-                         displayName.split(',')[0] || 
-                         displayName.split(',')[1] || // Sometimes name is in second part
-                         query;
+          // Extract name - prioritize road names when query looks like a road
+          let placeName = '';
+          const isRoad = place.type === 'highway' || place.class === 'highway' || 
+                        (place.address && place.address.road);
+          
+          if (isRoadQuery && isRoad && address.road) {
+            // For road queries, prioritize the road name
+            placeName = address.road;
+          } else {
+            // For place queries, use standard name extraction
+            placeName = place.name || 
+                       place.namedetails?.name || 
+                       place.namedetails?.['name:en'] ||
+                       (place.extratags && (place.extratags.name || place.extratags['name:en'])) ||
+                       (place.address && (place.address.building || place.address.amenity || place.address.shop)) ||
+                       (isRoad && address.road) || // Use road name if it's a road
+                       displayName.split(',')[0] || 
+                       displayName.split(',')[1] || // Sometimes name is in second part
+                       query;
+          }
           
           // Clean up the name
           placeName = placeName.trim();
@@ -187,10 +210,26 @@ const geocodingService = {
                              (address.city && address.city.toLowerCase().includes('kigali'));
           const kigaliBoost = isInKigali ? -2 : 0; // Boost Kigali results by 2 points
           
-          if (placeNameLower.startsWith(lowerQuery)) {
+          // Boost road results when query is a road name
+          const roadBoost = (isRoadQuery && isRoad) ? -3 : 0; // Strong boost for road matches
+          
+          // Check if road name matches query
+          const roadName = address.road ? address.road.toLowerCase() : '';
+          const roadMatches = roadName && (
+            roadName.startsWith(lowerQuery) || 
+            roadName.includes(lowerQuery) ||
+            lowerQuery.includes(roadName.replace(/\s+/g, '')) // Handle "KN4" vs "KN 4"
+          );
+          
+          if (isRoadQuery && roadMatches) {
+            // Road query matching road name = highest priority
+            relevance = 0 + kigaliBoost + roadBoost;
+          } else if (placeNameLower.startsWith(lowerQuery)) {
             relevance = 1 + kigaliBoost; // Starts with query = highest priority
           } else if (placeNameLower.includes(lowerQuery)) {
             relevance = 2 + kigaliBoost; // Contains query = medium priority
+          } else if (roadMatches) {
+            relevance = 2.5 + kigaliBoost + roadBoost; // Road name match (even if not road query)
           } else if (displayLower.includes(lowerQuery)) {
             relevance = 3 + kigaliBoost; // In display name
           } else if (addressLower.includes(lowerQuery)) {
@@ -214,7 +253,9 @@ const geocodingService = {
           // Determine type for better display
           let type = 'place';
           const placeType = place.type || place.class || '';
-          if (placeType.includes('cafe') || placeType.includes('restaurant') || placeType.includes('fast_food')) {
+          if (isRoad || placeType === 'highway' || place.class === 'highway') {
+            type = 'road'; // Mark as road for better UI display
+          } else if (placeType.includes('cafe') || placeType.includes('restaurant') || placeType.includes('fast_food')) {
             type = 'cafe';
           } else if (placeType.includes('shop') || placeType.includes('supermarket') || placeType.includes('mall')) {
             type = 'shop';
@@ -255,7 +296,7 @@ const geocodingService = {
       // Return popular places as fallback
     }
 
-    // Sort: popular places first, then by relevance score, then alphabetically
+    // Sort: popular places first, then roads (if road query), then by relevance score, then alphabetically
     results.sort((a, b) => {
       // Popular places always first
       if (a.type === 'popular' && b.type !== 'popular') return -1;
@@ -264,6 +305,13 @@ const geocodingService = {
         // Both popular: sort by relevance
         return (a.relevance || 5) - (b.relevance || 5);
       }
+      
+      // If road query, prioritize road results
+      if (isRoadQuery) {
+        if (a.type === 'road' && b.type !== 'road') return -1;
+        if (b.type === 'road' && a.type !== 'road') return 1;
+      }
+      
       // Both OSM: sort by relevance, then alphabetically
       const relevanceDiff = (a.relevance || 5) - (b.relevance || 5);
       if (relevanceDiff !== 0) return relevanceDiff;
