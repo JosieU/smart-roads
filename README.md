@@ -210,6 +210,40 @@ smart-roads/
 - **Styling**: CSS3 with modern, responsive design
 - **Architecture**: RESTful API with coordinate-based routing
 
+## Documentation
+
+This project includes comprehensive documentation covering developer documentation, technical architecture, and user guides:
+
+### 📚 Available Documentation
+
+- **[SYSTEM_ARCHITECTURE.md](SYSTEM_ARCHITECTURE.md)** - Complete technical architecture documentation including:
+  - System architecture and design patterns
+  - Core functionality and algorithms
+  - Data storage architecture
+  - API endpoints and integration details
+  - Performance optimizations
+  - Error handling and resilience strategies
+
+- **[OFFLINE_FEATURES.md](OFFLINE_FEATURES.md)** - Detailed guide on offline capabilities and Progressive Web App (PWA) features
+
+- **Developer Documentation** (in README.md):
+  - Installation and setup instructions
+  - Project structure and file organization
+  - API endpoint documentation with examples
+  - Development workflow and running instructions
+  - Environment configuration
+
+- **User Guides**:
+  - In-app help modal with step-by-step instructions
+  - Feature usage guides (route finding, traffic reporting, smart reminders)
+  - PWA installation instructions for iOS/Android
+  - Offline vs. online functionality guide
+
+- **Technical Architecture**:
+  - See [SYSTEM_ARCHITECTURE.md](SYSTEM_ARCHITECTURE.md) for detailed system design, algorithms, data models, and architectural decisions
+
+For a complete overview of the system's technical implementation, algorithms, and architecture, please refer to [SYSTEM_ARCHITECTURE.md](SYSTEM_ARCHITECTURE.md).
+
 ## Key Features Explained
 
 ### Place-Based Search
