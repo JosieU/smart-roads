@@ -1,0 +1,29 @@
+.route-list {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.route-list h2 {
+  margin: 0 0 12px 0;
+  color: #333;
+  font-size: 1.5rem;
+}
+
+.routes-note {
+  color: #856404;
+  background-color: #fff3cd;
+  padding: 10px 15px;
+  border-radius: 6px;
+  margin-bottom: 20px;
+  font-size: 0.9rem;
+  border-left: 4px solid #ff9800;
+}
+
+.routes-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+

@@ -1,0 +1,193 @@
+.app-header {
+  /* ============================================
+     BACKGROUND IMAGE - CHANGE HERE (Line 4)
+     ============================================ */
+  
+  /* Option 1: Aerial view of Kigali city (current) - Image is set via inline style in Header.js */
+  /* background-image is now set in Header.js component to avoid webpack resolution issues */
+  
+  /* Option 2: Another Kigali aerial view - replace line above with this:
+  background-image: url('https://images.unsplash.com/photo-1547036967-23d11aacaee0?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80');
+  */
+  
+  /* Option 3: Rwanda landscape with rolling hills - replace line above with this:
+  background-image: url('https://images.unsplash.com/photo-1580584126903-c17d41830450?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80');
+  */
+  
+  /* Option 4: Stadium view - replace line above with this:
+  background-image: url('https://images.unsplash.com/photo-1574629810360-7efbbe195018?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80');
+  */
+  
+  /* Option 5: Use your own Kigali image:
+     STEP 1: Copy your image file to: client/public/images/header-bg.jpg
+     STEP 2: Replace line 8 above with: background-image: url('/images/header-bg.jpg');
+     STEP 3: Save the file and refresh your browser
+     NOTE: The image file MUST exist in client/public/images/ before using this path!
+  */
+  
+  /* Fallback background color in case image doesn't load */
+  background-color: #1b5e3e; /* Dark green fallback */
+  background-size: 130% auto;
+  /* Zoomed out to show more of the image while still covering the header area */
+  background-position: center center;
+  /* Centered to show the key elements (Convention Centre and hotel) */
+  background-repeat: no-repeat;
+  color: white;
+  padding: 30px 20px;
+  box-shadow: 0 4px 15px rgba(13, 77, 46, 0.3);
+  position: relative;
+  overflow: hidden;
+  min-height: 180px;
+}
+
+/* Subtle overlay for text readability - very light to show image clearly */
+/* TO REMOVE OVERLAY COMPLETELY: Comment out the entire .app-header::before section below */
+.app-header::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, 
+    rgba(13, 77, 46, 0.1) 0%, 
+    rgba(27, 94, 62, 0.08) 50%, 
+    rgba(13, 77, 46, 0.12) 100%);
+  /* Very light green overlay - image should be clearly visible */
+  pointer-events: none;
+  z-index: 0;
+}
+
+.header-content {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  position: relative;
+  z-index: 2;
+}
+
+.header-text {
+  flex: 1;
+  text-align: center;
+  position: relative;
+  z-index: 1;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: relative;
+  z-index: 1;
+}
+
+.header-weather {
+  display: flex;
+  align-items: center;
+}
+
+.header-schedule-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  color: white;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  backdrop-filter: blur(10px);
+  position: relative;
+  z-index: 1;
+}
+
+.header-schedule-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.header-dashboard-link {
+  background: rgba(255, 255, 255, 0.2);
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  color: white;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s;
+  white-space: nowrap;
+  backdrop-filter: blur(10px);
+  position: relative;
+  z-index: 1;
+  display: inline-block;
+}
+
+.header-dashboard-link:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.app-header h1 {
+  font-size: 2.5rem;
+  margin: 0 0 8px 0;
+  font-weight: 700;
+  text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.6), 0 0 20px rgba(0, 0, 0, 0.4);
+  /* Stronger shadow for better text visibility on lighter overlay */
+  position: relative;
+  z-index: 1;
+}
+
+.subtitle {
+  font-size: 1.1rem;
+  margin: 0;
+  opacity: 0.95;
+  font-weight: 300;
+  text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.5), 0 0 10px rgba(0, 0, 0, 0.3);
+  /* Added shadow for better visibility */
+  position: relative;
+  z-index: 1;
+}
+
+@media (max-width: 768px) {
+  .header-content {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .header-text {
+    text-align: center;
+  }
+
+  .app-header h1 {
+    font-size: 2rem;
+  }
+  
+  .subtitle {
+    font-size: 1rem;
+  }
+
+  .header-schedule-btn {
+    padding: 8px 16px;
+    font-size: 14px;
+  }
+  
+  .header-actions {
+    flex-direction: column;
+    width: 100%;
+    align-items: stretch;
+  }
+  
+  .header-weather {
+    width: 100%;
+  }
+}
+

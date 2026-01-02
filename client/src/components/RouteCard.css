@@ -1,0 +1,209 @@
+.route-card {
+  background: white;
+  border: 2px solid #e0e0e0;
+  border-radius: 12px;
+  padding: 20px;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.route-card:hover {
+  border-color: #22c55e;
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.2);
+}
+
+.route-card.selected {
+  border-color: #22c55e;
+  border-width: 3px;
+  box-shadow: 0 4px 16px rgba(34, 197, 94, 0.3);
+}
+
+.route-card.recommended {
+  border-color: #4caf50;
+}
+
+.recommended-badge {
+  position: absolute;
+  top: -12px;
+  right: 20px;
+  background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
+  color: white;
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  box-shadow: 0 3px 10px rgba(76, 175, 80, 0.3);
+}
+
+.route-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.route-header h3 {
+  margin: 0;
+  color: #333;
+  font-size: 1.3rem;
+}
+
+.route-stats {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.stat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #666;
+  font-size: 0.95rem;
+}
+
+.stat-icon {
+  font-size: 1.1rem;
+}
+
+.route-summary {
+  margin-bottom: 12px;
+  padding: 10px;
+  background-color: #f8f9fa;
+  border-radius: 6px;
+}
+
+.summary-text {
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.summary-clear {
+  color: #4caf50;
+  font-weight: 600;
+}
+
+.summary-warning {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background-color: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: 6px;
+}
+
+.warning-icon {
+  font-size: 1.2rem;
+}
+
+.summary-warning-text {
+  color: #856404;
+  font-weight: 600;
+}
+
+.toggle-details {
+  background: none;
+  border: none;
+  color: #16a34a;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 8px 0;
+  margin-bottom: 12px;
+  text-align: left;
+}
+
+.toggle-details:hover {
+  text-decoration: underline;
+}
+
+.road-details {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.road-details h4 {
+  margin: 0 0 12px 0;
+  color: #555;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.road-segment {
+  padding: 12px;
+  margin-bottom: 10px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border-left: 3px solid #e0e0e0;
+}
+
+.segment-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.segment-name {
+  font-weight: 600;
+  color: #333;
+}
+
+.segment-info {
+  margin-bottom: 8px;
+}
+
+.segment-distance {
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.segment-report {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #e0e0e0;
+  color: #856404;
+  font-size: 0.85rem;
+  font-style: italic;
+  line-height: 1.4;
+}
+
+.segment-report.historical {
+  background-color: #fff9e6;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border-left: 3px solid #ffc107;
+  color: #856404;
+  font-style: normal;
+}
+
+.route-directions {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 2px solid #22c55e;
+}
+
+.route-directions h4 {
+  margin: 0 0 12px 0;
+  color: #16a34a;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.directions-list {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.directions-list li {
+  margin-bottom: 8px;
+  color: #555;
+  line-height: 1.5;
+}

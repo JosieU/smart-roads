@@ -1,0 +1,40 @@
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.status-emoji {
+  font-size: 0.9rem;
+}
+
+.status-light {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+}
+
+.status-medium {
+  background-color: #fff9c4;
+  color: #f57f17;
+}
+
+.status-heavy {
+  background-color: #ffebee;
+  color: #c62828;
+}
+
+.status-blocked {
+  background-color: #eceff1;
+  color: #424242;
+}
+
+.status-accident {
+  background-color: #fff3e0;
+  color: #e65100;
+  border: 1px solid #ff9800;
+}
+

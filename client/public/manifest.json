@@ -1,0 +1,42 @@
+{
+  "short_name": "Smart Roads",
+  "name": "Smart Roads - Navigate Smarter, Drive Safer",
+  "description": "Crowd-powered traffic reports for Kigali, Rwanda. Find alternative routes with real-time road conditions. Free PWA app for Android and iOS.",
+  "icons": [
+    {
+      "src": "favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#22c55e",
+  "background_color": "#ffffff",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "categories": ["navigation", "travel", "utilities"],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Report Traffic",
+      "short_name": "Report",
+      "description": "Quickly report traffic conditions",
+      "url": "/#report",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
+

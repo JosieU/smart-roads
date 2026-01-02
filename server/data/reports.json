@@ -1,0 +1,16 @@
+{
+  "reports": [
+    {
+      "id": 1,
+      "roadId": "road_-196_3005",
+      "roadName": "Coffeeshop Company",
+      "reportType": "medium",
+      "userId": "user_1765886762549",
+      "lat": -1.9507721,
+      "lng": 30.0594731,
+      "timestamp": "2025-12-16T12:06:02.549Z"
+    }
+  ],
+  "nextId": 2,
+  "lastUpdated": "2025-12-23T15:12:30.274Z"
+}

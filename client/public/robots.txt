@@ -1,0 +1,10 @@
+# robots.txt for Smart Roads
+User-agent: *
+Allow: /
+
+# Sitemap location
+Sitemap: https://smart-roads.vercel.app/sitemap.xml
+
+# Disallow admin endpoints (if any)
+Disallow: /api/admin/
+
