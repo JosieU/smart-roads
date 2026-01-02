@@ -29,13 +29,20 @@ function Dashboard() {
 
   // Check authentication on mount
   useEffect(() => {
+    const savedToken = sessionStorage.getItem('dashboard_token');
     const savedAuth = sessionStorage.getItem('dashboard_authenticated');
-    if (savedAuth === 'true') {
+    
+    if (savedToken && savedAuth === 'true') {
+      // Verify token is still valid by trying to fetch stats
       setIsAuthenticated(true);
       fetchStats();
       // Refresh every 30 seconds
       const interval = setInterval(fetchStats, 30000);
       return () => clearInterval(interval);
+    } else {
+      // Clear invalid session
+      sessionStorage.removeItem('dashboard_token');
+      sessionStorage.removeItem('dashboard_authenticated');
     }
   }, []);
 
@@ -48,44 +55,95 @@ function Dashboard() {
     }
   }, [isAuthenticated]);
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    // Simple password check - in production, use environment variable
-    const correctPassword = process.env.REACT_APP_DASHBOARD_PASSWORD || 'smartroads2025';
     
-    if (password === correctPassword) {
-      setIsAuthenticated(true);
-      setAuthError('');
-      sessionStorage.setItem('dashboard_authenticated', 'true');
-      fetchStats();
-    } else {
-      setAuthError('Incorrect password. Please try again.');
+    if (!password.trim()) {
+      setAuthError('Please enter a password');
+      return;
+    }
+    
+    try {
+      const response = await axios.post('/api/admin/login', { password });
+      
+      if (response.data.success && response.data.token) {
+        // Store session token
+        sessionStorage.setItem('dashboard_token', response.data.token);
+        sessionStorage.setItem('dashboard_authenticated', 'true');
+        setIsAuthenticated(true);
+        setAuthError('');
+        setPassword('');
+        fetchStats();
+      }
+    } catch (err) {
+      if (err.response?.status === 401) {
+        setAuthError('Incorrect password. Please try again.');
+      } else if (err.response?.status === 500) {
+        setAuthError('Server configuration error. Please contact administrator.');
+      } else {
+        setAuthError('Login failed. Please try again.');
+      }
       setPassword('');
+      console.error('Login error:', err);
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    const token = sessionStorage.getItem('dashboard_token');
+    
+    // Call backend logout endpoint
+    if (token) {
+      try {
+        await axios.post('/api/admin/logout', {}, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      } catch (err) {
+        console.error('Logout error:', err);
+      }
+    }
+    
     setIsAuthenticated(false);
     setStats(null);
     setPassword('');
+    sessionStorage.removeItem('dashboard_token');
     sessionStorage.removeItem('dashboard_authenticated');
     window.history.pushState({}, '', window.location.pathname);
   };
 
   const fetchStats = async () => {
+    const token = sessionStorage.getItem('dashboard_token');
+    
+    if (!token) {
+      setIsAuthenticated(false);
+      return;
+    }
+    
     try {
-      const response = await axios.get('/api/admin/stats');
+      const response = await axios.get('/api/admin/stats', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       setStats(response.data);
       setError(null);
     } catch (err) {
-      setError('Failed to load statistics');
-      console.error('Dashboard error:', err);
+      if (err.response?.status === 401) {
+        // Session expired or invalid
+        setIsAuthenticated(false);
+        sessionStorage.removeItem('dashboard_token');
+        sessionStorage.removeItem('dashboard_authenticated');
+        setError('Session expired. Please log in again.');
+      } else {
+        setError('Failed to load statistics');
+        console.error('Dashboard error:', err);
+      }
     } finally {
       setLoading(false);
     }
   };
 
   const fetchFeedback = async () => {
+    const token = sessionStorage.getItem('dashboard_token');
+    if (!token) return;
+    
     setLoadingFeedback(true);
     try {
       let url = '/api/feedback';
@@ -104,7 +162,9 @@ function Dashboard() {
         url += '?' + params.toString();
       }
       
-      const response = await axios.get(url);
+      const response = await axios.get(url, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       setFeedbackList(response.data.feedback || []);
     } catch (err) {
       console.error('Error fetching feedback:', err);
@@ -115,6 +175,9 @@ function Dashboard() {
   };
 
   const fetchFilteredReports = async () => {
+    const token = sessionStorage.getItem('dashboard_token');
+    if (!token) return;
+    
     setLoadingReports(true);
     try {
       let url = '/api/reports';
@@ -133,7 +196,9 @@ function Dashboard() {
         url += '?' + params.toString();
       }
       
-      const response = await axios.get(url);
+      const response = await axios.get(url, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       setFilteredReports(response.data.reports || []);
     } catch (err) {
       console.error('Error fetching reports:', err);

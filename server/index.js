@@ -19,6 +19,9 @@ const app = express();
 let feedbackStore = [];
 // Store route requests for analytics (fallback, primary is database)
 let routeRequests = [];
+// Store active dashboard sessions (simple in-memory session store)
+// In production, consider using Redis or database for session storage
+const dashboardSessions = new Map();
 
 const PORT = process.env.PORT || 5000;
 
@@ -642,9 +645,88 @@ app.get('/api/feedback', async (req, res) => {
   }
 });
 
+// Admin login endpoint - authenticate dashboard access
+app.post('/api/admin/login', (req, res) => {
+  const { password } = req.body;
+  
+  if (!password) {
+    return res.status(400).json({ error: 'Password is required' });
+  }
+  
+  const correctPassword = process.env.DASHBOARD_PASSWORD;
+  
+  if (!correctPassword) {
+    return res.status(500).json({ error: 'Dashboard password not configured on server' });
+  }
+  
+  if (password !== correctPassword) {
+    return res.status(401).json({ error: 'Incorrect password' });
+  }
+  
+  // Generate a simple session token
+  const sessionToken = `dashboard_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+  const expiresAt = Date.now() + (24 * 60 * 60 * 1000); // 24 hours
+  
+  // Store session
+  dashboardSessions.set(sessionToken, {
+    expiresAt: expiresAt,
+    createdAt: Date.now()
+  });
+  
+  // Clean up expired sessions periodically
+  if (dashboardSessions.size > 100) {
+    const now = Date.now();
+    for (const [token, session] of dashboardSessions.entries()) {
+      if (session.expiresAt < now) {
+        dashboardSessions.delete(token);
+      }
+    }
+  }
+  
+  res.json({ 
+    success: true,
+    token: sessionToken,
+    expiresAt: expiresAt
+  });
+});
+
+// Admin logout endpoint
+app.post('/api/admin/logout', (req, res) => {
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  
+  if (token && dashboardSessions.has(token)) {
+    dashboardSessions.delete(token);
+  }
+  
+  res.json({ success: true, message: 'Logged out successfully' });
+});
+
+// Middleware to verify dashboard session
+function verifyDashboardSession(req, res, next) {
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  
+  if (!token) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  
+  const session = dashboardSessions.get(token);
+  
+  if (!session) {
+    return res.status(401).json({ error: 'Invalid or expired session' });
+  }
+  
+  if (session.expiresAt < Date.now()) {
+    dashboardSessions.delete(token);
+    return res.status(401).json({ error: 'Session expired' });
+  }
+  
+  // Session is valid, continue
+  next();
+}
+
 // Admin endpoint: Get comprehensive statistics
-// Note: Password protection is handled by the frontend dashboard component
-app.get('/api/admin/stats', async (req, res) => {
+// Protected by backend authentication
+app.get('/api/admin/stats', verifyDashboardSession, async (req, res) => {
   try {
     await connectDB();
     
