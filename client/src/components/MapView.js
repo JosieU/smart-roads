@@ -212,8 +212,49 @@ function MapView({ routes, selectedRoute, startPlace, endPlace, onWeatherChange,
   // Track deviation for auto-recalculation
   const deviationTimerRef = useRef(null);
   const lastRecalculationRef = useRef(null);
-  const deviationThreshold = 300; // 300 meters - significant deviation
-  const deviationDuration = 10000; // 10 seconds of being off-route triggers recalculation
+  const deviationThreshold = 200; // 200 meters - detect when user takes different road
+  const deviationDuration = 5000; // 5 seconds of sustained deviation triggers recalculation (faster response)
+
+  // Auto-start tracking when a route is selected (if location permission available)
+  // This enables automatic deviation detection when user takes a different road
+  useEffect(() => {
+    if (selectedRoute && routes.length > 0 && !isTracking && navigator.geolocation) {
+      const options = {
+        enableHighAccuracy: false,
+        timeout: 20000,
+        maximumAge: 60000
+      };
+      
+      setLocationError(null);
+      const watchId = navigator.geolocation.watchPosition(
+        (position) => {
+          setCurrentLocation({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+            accuracy: position.coords.accuracy
+          });
+          setIsTracking(true);
+        },
+        (err) => {
+          // Don't show error if permission not granted - user can manually start tracking
+          if (err.code !== 1) { // 1 = PERMISSION_DENIED
+            setLocationError(err.message);
+          }
+        },
+        options
+      );
+      
+      watchIdRef.current = watchId;
+      
+      // Cleanup on unmount or when route changes
+      return () => {
+        if (watchIdRef.current === watchId) {
+          navigator.geolocation.clearWatch(watchId);
+          watchIdRef.current = null;
+        }
+      };
+    }
+  }, [selectedRoute, routes.length, isTracking]);
 
   // Check if user is on route and detect deviation
   useEffect(() => {
@@ -255,10 +296,12 @@ function MapView({ routes, selectedRoute, startPlace, endPlace, onWeatherChange,
       setOnRouteStatus({ onRoute: false, distance: Math.round(distance) });
       
       // If significantly deviated (more than deviationThreshold), start timer for recalculation
-      if (distance > deviationThreshold && onRouteDeviation && isTracking) {
-        // Prevent multiple recalculations in short time (wait at least 30 seconds between recalculations)
+      // This detects when user takes a different road than suggested
+      // Works with any currentLocation (auto-tracking or manual tracking)
+      if (distance > deviationThreshold && onRouteDeviation) {
+        // Prevent multiple recalculations in short time (wait at least 20 seconds between recalculations)
         const now = Date.now();
-        if (lastRecalculationRef.current && (now - lastRecalculationRef.current) < 30000) {
+        if (lastRecalculationRef.current && (now - lastRecalculationRef.current) < 20000) {
           return; // Too soon since last recalculation
         }
 
@@ -289,7 +332,7 @@ function MapView({ routes, selectedRoute, startPlace, endPlace, onWeatherChange,
         }, deviationDuration);
       }
     }
-  }, [currentLocation, selectedRoute, routes, startPlace, endPlace, isTracking, onRouteDeviation]);
+  }, [currentLocation, selectedRoute, routes, startPlace, endPlace, onRouteDeviation]);
 
   // Cleanup timer on unmount
   useEffect(() => {

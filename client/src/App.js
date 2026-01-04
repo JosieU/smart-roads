@@ -72,8 +72,33 @@ function App() {
     }
   };
 
-  const handleRouteSelect = (routeId) => {
+  const handleRouteSelect = async (routeId) => {
     setSelectedRoute(routeId);
+    
+    // Find the selected route
+    const selectedRouteData = routes.find(r => r.id === routeId);
+    if (!selectedRouteData || !startPlace || !endPlace) {
+      return;
+    }
+    
+    // Refresh traffic data for the selected route
+    try {
+      const response = await axios.post('/api/routes/refresh-traffic', {
+        route: selectedRouteData,
+        start: startPlace,
+        end: endPlace
+      });
+      
+      // Update the route in the routes array with fresh traffic data
+      setRoutes(prevRoutes => 
+        prevRoutes.map(route => 
+          route.id === routeId ? response.data.route : route
+        )
+      );
+    } catch (error) {
+      console.error('Failed to refresh route traffic:', error);
+      // Don't show error to user - just continue with existing data
+    }
   };
 
   const handleUseMyLocation = (location) => {
@@ -82,26 +107,27 @@ function App() {
   };
 
   // Handle route deviation - recalculate routes from current position
+  // This is triggered when user takes a different road than the suggested route
   const handleRouteDeviation = async ({ currentLocation, destination, distance }) => {
     if (!destination || !currentLocation) {
       return;
     }
 
     setRecalculatingRoutes(true);
-    setRecalculationMessage(`You've deviated from the route (${distance}m away). Recalculating from your current position...`);
+    setRecalculationMessage(`🛣️ You've taken a different road (${distance}m from suggested route). Recalculating routes from your current location...`);
 
     try {
       // Recalculate routes from current location to destination
       await handleSearch(currentLocation, destination);
       
-      setRecalculationMessage('Routes recalculated! New routes from your current position are now available.');
+      setRecalculationMessage('✅ Routes updated! New routes from your current position are now available.');
       
-      // Auto-hide message after 5 seconds
+      // Auto-hide message after 6 seconds
       setTimeout(() => {
         setRecalculationMessage(null);
-      }, 5000);
+      }, 6000);
     } catch (err) {
-      setRecalculationMessage('Failed to recalculate routes. Please try again.');
+      setRecalculationMessage('❌ Failed to recalculate routes. Please try again.');
       console.error('Route recalculation error:', err);
       
       // Hide error message after 5 seconds

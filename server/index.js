@@ -121,6 +121,115 @@ app.post('/api/geocode', async (req, res) => {
   }
 });
 
+// Refresh traffic data for a specific route
+app.post('/api/routes/refresh-traffic', async (req, res) => {
+  const { route, start, end } = req.body;
+  
+  if (!route || !start || !end) {
+    return res.status(400).json({ error: 'route, start, and end are required' });
+  }
+
+  try {
+    const now = new Date();
+    const currentDayOfWeek = now.getDay();
+    const currentHour = now.getHours();
+    
+    // Recalculate traffic data for route segments
+    const routeReports = route.roadSegments.map((segment) => {
+      let reports = [];
+      
+      // PRIORITY 1: Match by nearby coordinates
+      if (segment.geometry && segment.geometry.length > 0) {
+        const reportMap = new Map();
+        for (const point of segment.geometry) {
+          const nearbyReports = await roadReports.getReportsNearLocation(point.lat, point.lng, 200);
+          nearbyReports.forEach(r => {
+            const key = r.id || JSON.stringify(r);
+            if (!reportMap.has(key)) {
+              reportMap.set(key, r);
+            }
+          });
+        }
+        reports = Array.from(reportMap.values());
+      }
+      
+      // PRIORITY 2: Match by roadId
+      if (reports.length === 0) {
+        reports = await roadReports.getReportsForRoad(segment.roadId);
+      }
+      
+      // PRIORITY 3: Match by street name
+      if (reports.length === 0 && segment.roadName) {
+        reports = await roadReports.getReportsByStreetName(segment.roadName);
+      }
+      
+      // Filter recent reports (within last 10 minutes)
+      const recentReports = reports.filter(r => {
+        const reportTime = new Date(r.timestamp);
+        const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+        return reportTime > tenMinutesAgo;
+      });
+      
+      // Historical pattern
+      let historicalPattern = null;
+      let historicalMessage = null;
+      
+      if (recentReports.length === 0) {
+        historicalPattern = await roadReports.getHistoricalPattern(
+          segment.roadId,
+          segment.roadName,
+          currentDayOfWeek,
+          currentHour
+        );
+        
+        if (historicalPattern) {
+          const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+          const lastReportDate = new Date(historicalPattern.lastReportDate);
+          const weeksAgo = Math.floor((now - lastReportDate) / (7 * 24 * 60 * 60 * 1000));
+          
+          historicalMessage = `No live reports. Last ${dayNames[currentDayOfWeek]} at this time: ${historicalPattern.type} traffic (${historicalPattern.count} report${historicalPattern.count > 1 ? 's' : ''}${weeksAgo > 0 ? `, ${weeksAgo} week${weeksAgo > 1 ? 's' : ''} ago` : ''})`;
+        }
+      }
+      
+      return {
+        ...segment,
+        reports: reports,
+        recentReports: recentReports,
+        reportCount: reports.length,
+        recentReportCount: recentReports.length,
+        reportSummary: roadReports.getReportSummary(reports) || { light: 0, medium: 0, heavy: 0, blocked: 0, accident: 0 },
+        recentReportSummary: roadReports.getReportSummary(recentReports) || { light: 0, medium: 0, heavy: 0, blocked: 0, accident: 0 },
+        historicalPattern: historicalPattern,
+        historicalMessage: historicalMessage,
+        hasLiveData: recentReports.length > 0
+      };
+    }));
+    
+    // Calculate traffic summary
+    const heavyCount = routeReports.filter(seg => seg.reportSummary && seg.reportSummary.heavy > 0).length;
+    const mediumCount = routeReports.filter(seg => seg.reportSummary && seg.reportSummary.medium > 0).length;
+    const lightCount = routeReports.filter(seg => seg.reportSummary && seg.reportSummary.light > 0).length;
+    const blockedCount = routeReports.filter(seg => seg.reportSummary && seg.reportSummary.blocked > 0).length;
+    
+    const updatedRoute = {
+      ...route,
+      roadSegments: routeReports,
+      hasFlaggedRoads: routeReports.some(seg => seg.reports.length > 0),
+      trafficSummary: {
+        heavy: heavyCount,
+        medium: mediumCount,
+        light: lightCount,
+        blocked: blockedCount
+      }
+    };
+
+    res.json({ route: updatedRoute });
+  } catch (error) {
+    console.error('Route traffic refresh error:', error);
+    res.status(500).json({ error: 'Failed to refresh route traffic data' });
+  }
+});
+
 // Get alternative routes for a destination (now uses coordinates)
 app.post('/api/routes/alternatives', async (req, res) => {
   const { start, end } = req.body;
