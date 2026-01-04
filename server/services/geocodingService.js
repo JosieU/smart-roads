@@ -397,7 +397,8 @@ const geocodingService = {
   },
 
   // Reverse geocode: coordinates to place name using Nominatim
-  async reverseGeocode(lat, lng) {
+  // For reporting: prioritizes road names over place names
+  async reverseGeocode(lat, lng, prioritizeRoad = false) {
     try {
       const response = await axios.get('https://nominatim.openstreetmap.org/reverse', {
         params: {
@@ -414,11 +415,27 @@ const geocodingService = {
 
       if (response.data && response.data.address) {
         const address = response.data.address;
-        const name = response.data.name || 
-                    address.road || 
-                    address.suburb || 
-                    address.neighbourhood ||
-                    'Location';
+        
+        // For reporting: prioritize road name over place name
+        let name;
+        if (prioritizeRoad) {
+          // When prioritizing road, use road name as primary identifier
+          name = address.road || 
+                 address.pedestrian || 
+                 address.path ||
+                 response.data.name || 
+                 address.suburb || 
+                 address.neighbourhood ||
+                 'Location';
+        } else {
+          // For general use, use place name if available, fallback to road
+          name = response.data.name || 
+                 address.road || 
+                 address.suburb || 
+                 address.neighbourhood ||
+                 'Location';
+        }
+        
         const addressParts = [
           address.road,
           address.suburb || address.neighbourhood,
@@ -428,7 +445,10 @@ const geocodingService = {
 
         return {
           name: name,
-          address: addressParts || response.data.display_name
+          address: addressParts || response.data.display_name,
+          road: address.road || null, // Explicitly include road name
+          placeName: response.data.name || null, // Keep place name separate
+          coordinates: { lat, lng } // Include coordinates
         };
       }
     } catch (error) {
@@ -438,7 +458,10 @@ const geocodingService = {
     // Fallback
     return {
       name: `Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`,
-      address: 'Rwanda'
+      address: 'Rwanda',
+      road: null,
+      placeName: null,
+      coordinates: { lat, lng }
     };
   }
 };

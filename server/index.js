@@ -371,26 +371,28 @@ app.post('/api/reports', async (req, res) => {
     // Generate a road ID based on coordinates (rounded to ~100m precision)
     finalRoadId = `road_${Math.floor(lat * 100)}_${Math.floor(lng * 100)}`;
     try {
-      const nearestPlace = await geocodingService.reverseGeocode(lat, lng);
+      // Prioritize road names for reporting (not place names)
+      const locationInfo = await geocodingService.reverseGeocode(lat, lng, true);
       
-      // Extract street name from the address
-      let streetName = nearestPlace.name;
+      // Prioritize road name over place name
+      let streetName = locationInfo.road || locationInfo.name;
       
-      // If name is generic, try to get road name from address
-      if (!streetName || streetName.includes('Location') || streetName.includes('Address')) {
-        const addressParts = nearestPlace.address.split(',');
-        // Look for road/street/avenue in address parts
-        const roadPart = addressParts.find(part => 
-          part.includes('Road') || 
-          part.includes('Street') || 
-          part.includes('Avenue') ||
-          part.includes('Ave') ||
-          part.includes('St') ||
-          part.includes('KN') ||
-          part.includes('KG') ||
-          part.includes('DR')
-        );
-        streetName = roadPart ? roadPart.trim() : addressParts[0]?.trim() || `Road at ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+      // If we still don't have a good road name, try to extract from address
+      if (!streetName || streetName.includes('Location') || streetName.includes('Address') || !locationInfo.road) {
+        const addressParts = locationInfo.address.split(',');
+        // Look for road/street/avenue in address parts (prioritize KN, KG, DR patterns)
+        const roadPart = addressParts.find(part => {
+          const partLower = part.toLowerCase().trim();
+          return partLower.includes('kn') || 
+                 partLower.includes('kg') || 
+                 partLower.includes('dr') ||
+                 partLower.includes('road') || 
+                 partLower.includes('street') || 
+                 partLower.includes('avenue') ||
+                 partLower.includes('ave') ||
+                 partLower.includes('st');
+        });
+        streetName = roadPart ? roadPart.trim() : (locationInfo.road || locationInfo.name || `Road at ${lat.toFixed(4)}, ${lng.toFixed(4)}`);
       }
       
       finalRoadName = streetName;
@@ -492,32 +494,36 @@ app.post('/api/reports/reverse-geocode', async (req, res) => {
   }
 
   try {
-    const locationInfo = await geocodingService.reverseGeocode(lat, lng);
+    // Prioritize road names for reporting (not place names)
+    const locationInfo = await geocodingService.reverseGeocode(lat, lng, true);
     
-    // Extract street name from the address
-    let streetName = locationInfo.name;
+    // Prioritize road name over place name for reporting
+    let streetName = locationInfo.road || locationInfo.name;
     
-    // If name is generic, try to get road name from address
-    if (!streetName || streetName.includes('Location') || streetName.includes('Address')) {
+    // If we still don't have a good road name, try to extract from address
+    if (!streetName || streetName.includes('Location') || streetName.includes('Address') || !locationInfo.road) {
       const addressParts = locationInfo.address.split(',');
-      // Look for road/street/avenue in address parts
-      const roadPart = addressParts.find(part => 
-        part.includes('Road') || 
-        part.includes('Street') || 
-        part.includes('Avenue') ||
-        part.includes('Ave') ||
-        part.includes('St') ||
-        part.includes('KN') ||
-        part.includes('KG') ||
-        part.includes('DR')
-      );
-      streetName = roadPart ? roadPart.trim() : addressParts[0]?.trim() || 'Current Location';
+      // Look for road/street/avenue in address parts (prioritize KN, KG, DR patterns)
+      const roadPart = addressParts.find(part => {
+        const partLower = part.toLowerCase().trim();
+        return partLower.includes('kn') || 
+               partLower.includes('kg') || 
+               partLower.includes('dr') ||
+               partLower.includes('road') || 
+               partLower.includes('street') || 
+               partLower.includes('avenue') ||
+               partLower.includes('ave') ||
+               partLower.includes('st');
+      });
+      streetName = roadPart ? roadPart.trim() : (locationInfo.road || locationInfo.name || 'Current Location');
     }
     
     res.json({ 
       streetName: streetName,
       fullAddress: locationInfo.address,
-      name: locationInfo.name
+      name: locationInfo.name,
+      road: locationInfo.road, // Explicitly return road name
+      coordinates: locationInfo.coordinates // Return coordinates
     });
   } catch (error) {
     console.error('Reverse geocode error:', error);
