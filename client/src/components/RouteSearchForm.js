@@ -207,7 +207,7 @@ function RouteSearchForm({ onSearch, loading, onUseMyLocation }) {
     setShowEndSuggestions(false);
   };
 
-  const handleUseMyLocation = () => {
+  const handleUseMyLocation = async () => {
     if (!navigator.geolocation) {
       alert('Geolocation is not supported by your browser');
       return;
@@ -217,19 +217,42 @@ function RouteSearchForm({ onSearch, loading, onUseMyLocation }) {
     setUsingMyLocation(true);
     setStartQuery('Getting your location...');
 
-    // First try: Fast network-based location (faster, works indoors)
-    const tryGetLocation = (useHighAccuracy = false) => {
+    // Improved GPS accuracy: Use high accuracy mode with shorter timeout and fresher data
+    const tryGetLocation = (useHighAccuracy = true) => {
       navigator.geolocation.getCurrentPosition(
-        (position) => {
+        async (position) => {
+          const { latitude, longitude, accuracy } = position.coords;
+          
+          // Reverse geocode to get actual place name instead of just coordinates
+          let locationName = 'My Current Location';
+          let locationAddress = `Lat: ${latitude.toFixed(4)}, Lng: ${longitude.toFixed(4)}`;
+          
+          try {
+            // Get actual place name from coordinates
+            const response = await axios.post('/api/reports/reverse-geocode', {
+              lat: latitude,
+              lng: longitude
+            });
+            
+            if (response.data && response.data.name) {
+              locationName = response.data.name;
+              locationAddress = response.data.address || locationAddress;
+            }
+          } catch (err) {
+            console.error('Reverse geocode error:', err);
+            // Continue with coordinates if reverse geocode fails
+          }
+          
           const location = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-            name: 'My Current Location',
-            address: `Lat: ${position.coords.latitude.toFixed(4)}, Lng: ${position.coords.longitude.toFixed(4)}`
+            lat: latitude,
+            lng: longitude,
+            name: locationName,
+            address: locationAddress,
+            accuracy: accuracy // Store accuracy for reference
           };
 
           setSelectedStart(location);
-          setStartQuery('📍 My Current Location');
+          setStartQuery(`📍 ${locationName}`);
           setLocationLoading(false);
           
           // Notify parent component
@@ -238,9 +261,9 @@ function RouteSearchForm({ onSearch, loading, onUseMyLocation }) {
           }
         },
         (error) => {
-          // If first attempt failed and we haven't tried high accuracy, retry with it
-          if (!useHighAccuracy && error.code !== error.PERMISSION_DENIED) {
-            tryGetLocation(true);
+          // If high accuracy failed, try with lower accuracy as fallback
+          if (useHighAccuracy && error.code !== error.PERMISSION_DENIED) {
+            tryGetLocation(false);
             return;
           }
 
@@ -263,15 +286,15 @@ function RouteSearchForm({ onSearch, loading, onUseMyLocation }) {
           setLocationLoading(false);
         },
         {
-          enableHighAccuracy: useHighAccuracy, // Start with false for speed, retry with true if needed
-          timeout: 20000, // Increased to 20 seconds
-          maximumAge: 300000 // Allow 5-minute old cached location (faster)
+          enableHighAccuracy: useHighAccuracy, // Use high accuracy for better precision
+          timeout: 15000, // 15 seconds (reduced from 20 for faster response)
+          maximumAge: 30000 // Only allow 30-second old cached location (much fresher than 5 minutes)
         }
       );
     };
 
-    // Start with fast network-based location
-    tryGetLocation(false);
+    // Start with high accuracy GPS for better precision
+    tryGetLocation(true);
   };
 
   const handleSubmit = (e) => {

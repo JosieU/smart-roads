@@ -219,10 +219,11 @@ function MapView({ routes, selectedRoute, startPlace, endPlace, onWeatherChange,
   // This enables automatic deviation detection when user takes a different road
   useEffect(() => {
     if (selectedRoute && routes.length > 0 && !isTracking && navigator.geolocation) {
+      // Use high accuracy for better GPS precision when tracking routes
       const options = {
-        enableHighAccuracy: false,
-        timeout: 20000,
-        maximumAge: 60000
+        enableHighAccuracy: true, // Use high accuracy for better route tracking
+        timeout: 15000, // 15 seconds for faster response
+        maximumAge: 30000 // Only allow 30-second old cached location (fresher data)
       };
       
       setLocationError(null);

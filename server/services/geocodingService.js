@@ -82,6 +82,8 @@ const geocodingService = {
       const allResults = [];
       
       // Make primary search (fast - single query)
+      // Use bounding box for Kigali to focus results and improve accuracy
+      // Kigali bounding box: approximately -2.0 to -1.8 lat, 29.9 to 30.2 lng
       try {
         const response = await axios.get('https://nominatim.openstreetmap.org/search', {
           params: {
@@ -94,7 +96,9 @@ const geocodingService = {
             dedupe: 1,  // Deduplicate results
             countrycodes: 'rw',  // Limit to Rwanda
             extratags: 1,  // Get extra tags for better matching
-            polygon_geojson: 0  // Don't need polygon data
+            polygon_geojson: 0,  // Don't need polygon data
+            viewbox: '-2.0,29.9,-1.8,30.2',  // Kigali bounding box (south,west,north,east)
+            bounded: 0  // Don't strictly require results to be in bounding box, but prioritize them
           },
           headers: {
             'User-Agent': 'Rwanda-Smart-Routes/1.0' // Required by Nominatim
@@ -129,7 +133,9 @@ const geocodingService = {
               dedupe: 1,
               countrycodes: 'rw',
               extratags: 1,
-              polygon_geojson: 0
+              polygon_geojson: 0,
+              viewbox: '-2.0,29.9,-1.8,30.2',  // Kigali bounding box
+              bounded: 0  // Prioritize but don't strictly require
             },
             headers: {
               'User-Agent': 'Rwanda-Smart-Routes/1.0'
@@ -204,11 +210,17 @@ const geocodingService = {
           // Lower score = more relevant (starts with query = highest priority)
           let relevance = 10; // Default relevance (lower is better)
           
+          // Check if result is in Kigali bounding box (approximately -2.0 to -1.8 lat, 29.9 to 30.2 lng)
+          const lat = parseFloat(place.lat);
+          const lng = parseFloat(place.lon);
+          const isInKigaliBounds = lat >= -2.0 && lat <= -1.8 && lng >= 29.9 && lng <= 30.2;
+          
           // Boost Kigali results (prioritize Kigali city)
           const isInKigali = addressLower.includes('kigali') || 
                              displayLower.includes('kigali') ||
-                             (address.city && address.city.toLowerCase().includes('kigali'));
-          const kigaliBoost = isInKigali ? -2 : 0; // Boost Kigali results by 2 points
+                             (address.city && address.city.toLowerCase().includes('kigali')) ||
+                             isInKigaliBounds;
+          const kigaliBoost = isInKigali ? -3 : 0; // Strong boost for Kigali results (3 points)
           
           // Boost road results when query is a road name
           const roadBoost = (isRoadQuery && isRoad) ? -3 : 0; // Strong boost for road matches
@@ -357,9 +369,11 @@ const geocodingService = {
         params: {
           q: geocodeQuery,
           format: 'json',
-          limit: 1,
+          limit: 5, // Get multiple results to find best match
           addressdetails: 1,
-          countrycodes: 'rw'  // Limit to Rwanda - uses current names from OSM
+          countrycodes: 'rw',  // Limit to Rwanda - uses current names from OSM
+          viewbox: '-2.0,29.9,-1.8,30.2',  // Kigali bounding box for better accuracy
+          bounded: 0  // Prioritize Kigali but allow other results
         },
         headers: {
           'User-Agent': 'Rwanda-Smart-Routes/1.0'
@@ -367,7 +381,15 @@ const geocodingService = {
       });
 
       if (response.data && response.data.length > 0) {
-        const place = response.data[0];
+        // Prioritize results in Kigali bounding box for better accuracy
+        const kigaliResults = response.data.filter(p => {
+          const lat = parseFloat(p.lat);
+          const lng = parseFloat(p.lon);
+          return lat >= -2.0 && lat <= -1.8 && lng >= 29.9 && lng <= 30.2;
+        });
+        
+        // Use Kigali result if available, otherwise use first result
+        const place = kigaliResults.length > 0 ? kigaliResults[0] : response.data[0];
         const address = place.address || {};
         const addressParts = [
           address.road,
