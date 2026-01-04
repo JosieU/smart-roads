@@ -9,15 +9,13 @@ import {
   generateScheduleId 
 } from '../utils/scheduleStorage';
 
-const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
 function ScheduleManager({ isOpen, onClose, onSelectDestination }) {
   const [schedules, setSchedules] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState(null);
   const [formData, setFormData] = useState({
     label: '',
-    days: [],
+    date: '', // ISO date string (YYYY-MM-DD)
     time: '09:00',
     destination: null,
     destinationName: '',
@@ -34,13 +32,16 @@ function ScheduleManager({ isOpen, onClose, onSelectDestination }) {
     }
   }, [isOpen]);
 
-  const handleDayToggle = (day) => {
-    setFormData(prev => ({
-      ...prev,
-      days: prev.days.includes(day)
-        ? prev.days.filter(d => d !== day)
-        : [...prev.days, day]
-    }));
+  // Format date for display
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString + 'T00:00:00'); // Add time to avoid timezone issues
+    return date.toLocaleDateString('en-US', { 
+      weekday: 'short', 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric' 
+    });
   };
 
   // Debounced search for destination suggestions
@@ -143,8 +144,8 @@ function ScheduleManager({ isOpen, onClose, onSelectDestination }) {
   };
 
   const handleSave = () => {
-    if (formData.days.length === 0) {
-      alert('Please select at least one day');
+    if (!formData.date) {
+      alert('Please select a date');
       return;
     }
 
@@ -156,7 +157,7 @@ function ScheduleManager({ isOpen, onClose, onSelectDestination }) {
     const schedule = {
       id: editingSchedule?.id || generateScheduleId(),
       label: formData.label || 'Untitled Schedule',
-      days: formData.days,
+      date: formData.date, // ISO date string (YYYY-MM-DD)
       time: formData.time,
       destination: formData.useCurrentLocation 
         ? null 
@@ -171,9 +172,13 @@ function ScheduleManager({ isOpen, onClose, onSelectDestination }) {
   };
 
   const resetForm = () => {
+    // Set default date to today
+    const today = new Date();
+    const todayISO = today.toISOString().split('T')[0]; // YYYY-MM-DD format
+    
     setFormData({
       label: '',
-      days: [],
+      date: todayISO,
       time: '09:00',
       destination: null,
       destinationName: '',
@@ -184,9 +189,22 @@ function ScheduleManager({ isOpen, onClose, onSelectDestination }) {
   };
 
   const handleEdit = (schedule) => {
+    // Handle backward compatibility: if schedule has 'days', convert to today's date
+    // Otherwise use the stored date, or default to today
+    let scheduleDate = schedule.date;
+    if (!scheduleDate && schedule.days) {
+      // Old format with days - default to today
+      const today = new Date();
+      scheduleDate = today.toISOString().split('T')[0];
+    } else if (!scheduleDate) {
+      // No date at all - default to today
+      const today = new Date();
+      scheduleDate = today.toISOString().split('T')[0];
+    }
+    
     setFormData({
       label: schedule.label,
-      days: schedule.days || [],
+      date: scheduleDate,
       time: schedule.time,
       destination: schedule.destination || null,
       destinationName: schedule.destination?.name || '',
@@ -262,10 +280,8 @@ function ScheduleManager({ isOpen, onClose, onSelectDestination }) {
                           <div className="schedule-time">
                             🕐 {schedule.time}
                           </div>
-                          <div className="schedule-days">
-                            {schedule.days.map(day => (
-                              <span key={day} className="day-badge">{day}</span>
-                            ))}
+                          <div className="schedule-date">
+                            📅 {schedule.date ? formatDate(schedule.date) : (schedule.days ? schedule.days.join(', ') : 'No date')}
                           </div>
                           <div className="schedule-destination">
                             {schedule.useCurrentLocation ? (
@@ -319,18 +335,19 @@ function ScheduleManager({ isOpen, onClose, onSelectDestination }) {
               </div>
 
               <div className="form-group">
-                <label>Days of Week</label>
-                <div className="days-selector">
-                  {DAYS.map(day => (
-                    <button
-                      key={day}
-                      className={`day-btn ${formData.days.includes(day) ? 'selected' : ''}`}
-                      onClick={() => handleDayToggle(day)}
-                    >
-                      {day}
-                    </button>
-                  ))}
-                </div>
+                <label>Date</label>
+                <input
+                  type="date"
+                  value={formData.date}
+                  onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
+                  min={new Date().toISOString().split('T')[0]} // Can't select past dates
+                  className="date-input"
+                />
+                {formData.date && (
+                  <p className="date-hint">
+                    Selected: {formatDate(formData.date)}
+                  </p>
+                )}
               </div>
 
               <div className="form-group">

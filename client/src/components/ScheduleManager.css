@@ -312,7 +312,8 @@
 }
 
 .form-group input[type="text"],
-.form-group input[type="time"] {
+.form-group input[type="time"],
+.form-group input[type="date"] {
   padding: 10px 14px;
   border: 2px solid #e0e0e0;
   border-radius: 8px;
@@ -352,6 +353,24 @@
   background: #22c55e;
   border-color: #22c55e;
   color: white;
+}
+
+.date-input {
+  width: 100%;
+  font-family: inherit;
+}
+
+.date-hint {
+  margin-top: 6px;
+  font-size: 13px;
+  color: #666;
+  font-style: italic;
+}
+
+.schedule-date {
+  font-size: 14px;
+  color: #666;
+  margin-top: 4px;
 }
 
 .destination-options {

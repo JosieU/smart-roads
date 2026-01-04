@@ -79,14 +79,31 @@ export const getTripHistory = () => {
 
 export const checkForReminders = () => {
   const now = new Date();
-  const currentDay = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][now.getDay()];
+  const todayISO = now.toISOString().split('T')[0]; // YYYY-MM-DD format
   const currentMinutes = now.getHours() * 60 + now.getMinutes();
   
   // Check active schedules
   const schedules = getSchedules().filter(s => s.active);
   const matchingSchedule = schedules.find(schedule => {
-    if (!schedule.days || !schedule.days.includes(currentDay)) return false;
+    // Check if schedule date matches today
+    // Handle backward compatibility: if schedule has 'days', check day name
+    let dateMatches = false;
     
+    if (schedule.date) {
+      // New format: check if date matches today
+      dateMatches = schedule.date === todayISO;
+    } else if (schedule.days) {
+      // Old format: check if current day is in days array
+      const currentDay = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][now.getDay()];
+      dateMatches = schedule.days.includes(currentDay);
+    } else {
+      // No date or days - skip this schedule
+      return false;
+    }
+    
+    if (!dateMatches) return false;
+    
+    // Check if time matches (within 10-minute window)
     const [h, m] = schedule.time.split(':').map(Number);
     const scheduleMinutes = h * 60 + m;
     const diff = Math.abs(scheduleMinutes - currentMinutes);
