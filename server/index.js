@@ -25,13 +25,25 @@ const dashboardSessions = new Map();
 
 const PORT = process.env.PORT || 5000;
 
-// Configure CORS - Simple and direct
+// Configure CORS - Allow all Vercel deployment URLs
 app.use(cors({
-  origin: [
-    'https://smart-roads.vercel.app',
-    'http://localhost:3000',
-    'http://localhost:3001'
-  ],
+  origin: function (origin, callback) {
+    // Allow requests with no origin (mobile apps, Postman, etc.)
+    if (!origin) return callback(null, true);
+    
+    // Allow localhost for development
+    if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
+      return callback(null, true);
+    }
+    
+    // Allow all Vercel deployment URLs (production and preview deployments)
+    if (origin.includes('vercel.app') || origin.includes('smart-roads')) {
+      return callback(null, true);
+    }
+    
+    // Default: allow the request
+    callback(null, true);
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],

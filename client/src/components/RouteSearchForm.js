@@ -79,6 +79,9 @@ function RouteSearchForm({ onSearch, loading, onUseMyLocation }) {
             if (startQuery === currentQuery) {
               console.error('Search error:', err);
               console.error('Error response:', err.response?.data);
+              console.error('Error status:', err.response?.status);
+              console.error('Error message:', err.message);
+              console.error('Request URL:', err.config?.url);
               setStartSuggestions([]);
               setShowStartSuggestions(false);
               setSearching(false);
@@ -89,10 +92,16 @@ function RouteSearchForm({ onSearch, loading, onUseMyLocation }) {
                 errorMsg += 'Server error. Please try again.';
               } else if (err.response?.status === 429) {
                 errorMsg += 'Too many requests. Please wait a moment.';
-              } else if (!err.response) {
-                errorMsg += 'Check your connection.';
+              } else if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+                errorMsg += 'Request timed out. Please try again.';
+              } else if (err.code === 'ERR_NETWORK' || !err.response) {
+                errorMsg += 'Network error. Please check your connection.';
+              } else if (err.response?.status === 404) {
+                errorMsg += 'API endpoint not found.';
+              } else if (err.response?.status === 403 || err.response?.status === 401) {
+                errorMsg += 'Access denied.';
               } else {
-                errorMsg += 'Please try again.';
+                errorMsg += `Error: ${err.response?.status || err.message || 'Unknown error'}`;
               }
               setStartError(errorMsg);
             }
@@ -166,6 +175,9 @@ function RouteSearchForm({ onSearch, loading, onUseMyLocation }) {
             if (endQuery === currentQuery) {
               console.error('Search error:', err);
               console.error('Error response:', err.response?.data);
+              console.error('Error status:', err.response?.status);
+              console.error('Error message:', err.message);
+              console.error('Request URL:', err.config?.url);
               setEndSuggestions([]);
               setShowEndSuggestions(false);
               setSearching(false);
@@ -176,10 +188,16 @@ function RouteSearchForm({ onSearch, loading, onUseMyLocation }) {
                 errorMsg += 'Server error. Please try again.';
               } else if (err.response?.status === 429) {
                 errorMsg += 'Too many requests. Please wait a moment.';
-              } else if (!err.response) {
-                errorMsg += 'Check your connection.';
+              } else if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+                errorMsg += 'Request timed out. Please try again.';
+              } else if (err.code === 'ERR_NETWORK' || !err.response) {
+                errorMsg += 'Network error. Please check your connection.';
+              } else if (err.response?.status === 404) {
+                errorMsg += 'API endpoint not found.';
+              } else if (err.response?.status === 403 || err.response?.status === 401) {
+                errorMsg += 'Access denied.';
               } else {
-                errorMsg += 'Please try again.';
+                errorMsg += `Error: ${err.response?.status || err.message || 'Unknown error'}`;
               }
               setEndError(errorMsg);
             }
