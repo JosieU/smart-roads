@@ -97,7 +97,7 @@ const geocodingService = {
             countrycodes: 'rw',  // Limit to Rwanda
             extratags: 1,  // Get extra tags for better matching
             polygon_geojson: 0,  // Don't need polygon data
-            viewbox: '-2.0,29.9,-1.8,30.2',  // Kigali bounding box (south,west,north,east)
+            viewbox: '29.9,-2.0,30.2,-1.8',  // Kigali bounding box (minlon,minlat,maxlon,maxlat)
             bounded: 0  // Don't strictly require results to be in bounding box, but prioritize them
           },
           headers: {
@@ -110,8 +110,35 @@ const geocodingService = {
           allResults.push(...response.data);
         }
       } catch (err) {
-        console.error('Primary Nominatim search failed:', err.message);
-        // Continue to fallback or return popular places
+        console.error('Primary Nominatim search with viewbox failed:', err.message);
+        // Try again without viewbox as fallback
+        try {
+          const fallbackResponse = await axios.get('https://nominatim.openstreetmap.org/search', {
+            params: {
+              q: primaryQuery,
+              format: 'json',
+              limit: 50,
+              addressdetails: 1,
+              'accept-language': 'en',
+              namedetails: 1,
+              dedupe: 1,
+              countrycodes: 'rw',
+              extratags: 1,
+              polygon_geojson: 0
+            },
+            headers: {
+              'User-Agent': 'Rwanda-Smart-Routes/1.0'
+            },
+            timeout: 8000
+          });
+          
+          if (fallbackResponse.data && fallbackResponse.data.length > 0) {
+            allResults.push(...fallbackResponse.data);
+          }
+        } catch (fallbackErr) {
+          console.error('Fallback Nominatim search also failed:', fallbackErr.message);
+          // Continue to return popular places only
+        }
       }
       
       // Only do fallback search if primary search returned few results (< 10)
@@ -134,7 +161,7 @@ const geocodingService = {
               countrycodes: 'rw',
               extratags: 1,
               polygon_geojson: 0,
-              viewbox: '-2.0,29.9,-1.8,30.2',  // Kigali bounding box
+              viewbox: '29.9,-2.0,30.2,-1.8',  // Kigali bounding box (minlon,minlat,maxlon,maxlat)
               bounded: 0  // Prioritize but don't strictly require
             },
             headers: {
@@ -372,7 +399,7 @@ const geocodingService = {
           limit: 5, // Get multiple results to find best match
           addressdetails: 1,
           countrycodes: 'rw',  // Limit to Rwanda - uses current names from OSM
-          viewbox: '-2.0,29.9,-1.8,30.2',  // Kigali bounding box for better accuracy
+          viewbox: '29.9,-2.0,30.2,-1.8',  // Kigali bounding box (minlon,minlat,maxlon,maxlat)
           bounded: 0  // Prioritize Kigali but allow other results
         },
         headers: {
