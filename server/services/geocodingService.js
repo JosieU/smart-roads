@@ -30,11 +30,16 @@ const geocodingService = {
 
   // Search for places using OSM Nominatim (real street names, businesses, landmarks, buildings)
   async searchPlaces(query) {
-    const lowerQuery = query.toLowerCase().trim();
-    if (!lowerQuery || lowerQuery.length < 1) return [];
+    try {
+      if (!query || typeof query !== 'string') {
+        return [];
+      }
+      
+      const lowerQuery = query.toLowerCase().trim();
+      if (!lowerQuery || lowerQuery.length < 1) return [];
 
-    const results = [];
-    const isRoadQuery = this.isRoadName(query);
+      const results = [];
+      const isRoadQuery = this.isRoadName(query);
     
     // Check popular places first (fast lookup) - partial matching
     Object.entries(this.popularPlaces).forEach(([key, place]) => {
@@ -57,12 +62,7 @@ const geocodingService = {
 
     // Always search OSM Nominatim for businesses, landmarks, buildings, addresses
     // This finds: cafes, shops, restaurants, schools, hospitals, landmarks, street names, etc.
-    // FOCUS ON KIGALI CITY for better accuracy
     try {
-      
-      // Try multiple search strategies to find more results
-      const searchQueries = [];
-      
       // Strategy 1: Search with full query + Kigali (focus on Kigali city for accuracy)
       const queryLower = query.toLowerCase();
       const hasLocationContext = queryLower.includes('kigali') || 
@@ -71,7 +71,6 @@ const geocodingService = {
                                  queryLower.includes('province');
       
       // Primary strategy: Focus on Kigali city for better results
-      // Use single best query to speed up search (reduced from 3 queries to 1-2)
       let primaryQuery;
       if (!hasLocationContext) {
         primaryQuery = `${query} Kigali`;  // Use Kigali for better accuracy
@@ -82,8 +81,6 @@ const geocodingService = {
       const allResults = [];
       
       // Make primary search (fast - single query)
-      // Use bounding box for Kigali to focus results and improve accuracy
-      // Kigali bounding box: approximately -2.0 to -1.8 lat, 29.9 to 30.2 lng
       try {
         const response = await axios.get('https://nominatim.openstreetmap.org/search', {
           params: {
@@ -96,56 +93,26 @@ const geocodingService = {
             dedupe: 1,  // Deduplicate results
             countrycodes: 'rw',  // Limit to Rwanda
             extratags: 1,  // Get extra tags for better matching
-            polygon_geojson: 0,  // Don't need polygon data
-            viewbox: '29.9,-2.0,30.2,-1.8',  // Kigali bounding box (minlon,minlat,maxlon,maxlat)
-            bounded: 0  // Don't strictly require results to be in bounding box, but prioritize them
+            polygon_geojson: 0  // Don't need polygon data
           },
           headers: {
             'User-Agent': 'Rwanda-Smart-Routes/1.0' // Required by Nominatim
           },
-          timeout: 8000 // 8 second timeout (reduced from 10)
+          timeout: 8000 // 8 second timeout
         });
         
         if (response.data && response.data.length > 0) {
           allResults.push(...response.data);
         }
       } catch (err) {
-        console.error('Primary Nominatim search with viewbox failed:', err.message);
-        // Try again without viewbox as fallback
-        try {
-          const fallbackResponse = await axios.get('https://nominatim.openstreetmap.org/search', {
-            params: {
-              q: primaryQuery,
-              format: 'json',
-              limit: 50,
-              addressdetails: 1,
-              'accept-language': 'en',
-              namedetails: 1,
-              dedupe: 1,
-              countrycodes: 'rw',
-              extratags: 1,
-              polygon_geojson: 0
-            },
-            headers: {
-              'User-Agent': 'Rwanda-Smart-Routes/1.0'
-            },
-            timeout: 8000
-          });
-          
-          if (fallbackResponse.data && fallbackResponse.data.length > 0) {
-            allResults.push(...fallbackResponse.data);
-          }
-        } catch (fallbackErr) {
-          console.error('Fallback Nominatim search also failed:', fallbackErr.message);
-          // Continue to return popular places only
-        }
+        console.error('Primary Nominatim search failed:', err.message);
+        // Continue to fallback or return popular places
       }
       
       // Only do fallback search if primary search returned few results (< 10)
-      // This speeds up the common case while still providing fallback
       if (allResults.length < 10 && !hasLocationContext) {
         try {
-          // Small delay to respect rate limits (reduced from 300ms to 100ms)
+          // Small delay to respect rate limits
           await new Promise(resolve => setTimeout(resolve, 100));
           
           const fallbackQuery = `${query} Rwanda`;
@@ -160,9 +127,7 @@ const geocodingService = {
               dedupe: 1,
               countrycodes: 'rw',
               extratags: 1,
-              polygon_geojson: 0,
-              viewbox: '29.9,-2.0,30.2,-1.8',  // Kigali bounding box (minlon,minlat,maxlon,maxlat)
-              bounded: 0  // Prioritize but don't strictly require
+              polygon_geojson: 0
             },
             headers: {
               'User-Agent': 'Rwanda-Smart-Routes/1.0'
@@ -220,7 +185,6 @@ const geocodingService = {
           const placeNameLower = placeName.toLowerCase();
           
           // Check if this place matches the query in name, address, or display name
-          // Be more inclusive - check all parts of the name and address
           const displayLower = displayName.toLowerCase();
           const addressLower = Object.values(address).join(' ').toLowerCase();
           const allText = `${placeNameLower} ${displayLower} ${addressLower}`;
@@ -234,23 +198,16 @@ const geocodingService = {
           }
           
           // Calculate relevance score for better sorting
-          // Lower score = more relevant (starts with query = highest priority)
           let relevance = 10; // Default relevance (lower is better)
           
-          // Check if result is in Kigali bounding box (approximately -2.0 to -1.8 lat, 29.9 to 30.2 lng)
-          const lat = parseFloat(place.lat);
-          const lng = parseFloat(place.lon);
-          const isInKigaliBounds = lat >= -2.0 && lat <= -1.8 && lng >= 29.9 && lng <= 30.2;
-          
-          // Boost Kigali results (prioritize Kigali city)
+          // Boost Kigali results
           const isInKigali = addressLower.includes('kigali') || 
                              displayLower.includes('kigali') ||
-                             (address.city && address.city.toLowerCase().includes('kigali')) ||
-                             isInKigaliBounds;
-          const kigaliBoost = isInKigali ? -3 : 0; // Strong boost for Kigali results (3 points)
+                             (address.city && address.city.toLowerCase().includes('kigali'));
+          const kigaliBoost = isInKigali ? -2 : 0;
           
           // Boost road results when query is a road name
-          const roadBoost = (isRoadQuery && isRoad) ? -3 : 0; // Strong boost for road matches
+          const roadBoost = (isRoadQuery && isRoad) ? -3 : 0;
           
           // Check if road name matches query
           const roadName = address.road ? address.road.toLowerCase() : '';
@@ -261,23 +218,21 @@ const geocodingService = {
           );
           
           if (isRoadQuery && roadMatches) {
-            // Road query matching road name = highest priority
             relevance = 0 + kigaliBoost + roadBoost;
           } else if (placeNameLower.startsWith(lowerQuery)) {
-            relevance = 1 + kigaliBoost; // Starts with query = highest priority
+            relevance = 1 + kigaliBoost;
           } else if (placeNameLower.includes(lowerQuery)) {
-            relevance = 2 + kigaliBoost; // Contains query = medium priority
+            relevance = 2 + kigaliBoost;
           } else if (roadMatches) {
-            relevance = 2.5 + kigaliBoost + roadBoost; // Road name match (even if not road query)
+            relevance = 2.5 + kigaliBoost + roadBoost;
           } else if (displayLower.includes(lowerQuery)) {
-            relevance = 3 + kigaliBoost; // In display name
+            relevance = 3 + kigaliBoost;
           } else if (addressLower.includes(lowerQuery)) {
-            relevance = 4 + kigaliBoost; // In address
+            relevance = 4 + kigaliBoost;
           } else {
-            relevance = 5 + kigaliBoost; // Matched in combined text
+            relevance = 5 + kigaliBoost;
           }
           
-          // Ensure relevance is at least 1
           relevance = Math.max(1, relevance);
           
           // Build address string
@@ -293,7 +248,7 @@ const geocodingService = {
           let type = 'place';
           const placeType = place.type || place.class || '';
           if (isRoad || placeType === 'highway' || place.class === 'highway') {
-            type = 'road'; // Mark as road for better UI display
+            type = 'road';
           } else if (placeType.includes('cafe') || placeType.includes('restaurant') || placeType.includes('fast_food')) {
             type = 'cafe';
           } else if (placeType.includes('shop') || placeType.includes('supermarket') || placeType.includes('mall')) {
@@ -308,13 +263,12 @@ const geocodingService = {
             type = 'address';
           }
 
-          // Skip if already in popular places or duplicate coordinates
+          // Skip if duplicate coordinates
           const isDuplicate = results.some(r => 
             Math.abs(r.lat - parseFloat(place.lat)) < 0.0001 && 
             Math.abs(r.lng - parseFloat(place.lon)) < 0.0001
           );
 
-          // Include all matching results
           if (!isDuplicate) {
             results.push({
               id: `osm_${place.place_id}`,
@@ -331,35 +285,34 @@ const geocodingService = {
       }
     } catch (error) {
       console.error('Nominatim search error:', error.message);
-      console.error('Error details:', error.response?.status, error.response?.statusText);
       // Return popular places as fallback
     }
 
-    // Sort: popular places first, then roads (if road query), then by relevance score, then alphabetically
+    // Sort: popular places first, then roads (if road query), then by relevance score
     results.sort((a, b) => {
-      // Popular places always first
       if (a.type === 'popular' && b.type !== 'popular') return -1;
       if (b.type === 'popular' && a.type !== 'popular') return 1;
       if (a.type === 'popular' && b.type === 'popular') {
-        // Both popular: sort by relevance
         return (a.relevance || 5) - (b.relevance || 5);
       }
       
-      // If road query, prioritize road results
       if (isRoadQuery) {
         if (a.type === 'road' && b.type !== 'road') return -1;
         if (b.type === 'road' && a.type !== 'road') return 1;
       }
       
-      // Both OSM: sort by relevance, then alphabetically
       const relevanceDiff = (a.relevance || 5) - (b.relevance || 5);
       if (relevanceDiff !== 0) return relevanceDiff;
       return a.name.localeCompare(b.name);
     });
 
-    const finalResults = results.slice(0, 25); // Return more results for better selection
-    
-    return finalResults;
+    return results.slice(0, 25);
+    } catch (error) {
+      console.error('searchPlaces error:', error);
+      console.error('Error stack:', error.stack);
+      // Return empty array on any error to prevent crashes
+      return [];
+    }
   },
 
   // Geocode a place name to coordinates using Nominatim
@@ -396,11 +349,9 @@ const geocodingService = {
         params: {
           q: geocodeQuery,
           format: 'json',
-          limit: 5, // Get multiple results to find best match
+          limit: 1,
           addressdetails: 1,
-          countrycodes: 'rw',  // Limit to Rwanda - uses current names from OSM
-          viewbox: '29.9,-2.0,30.2,-1.8',  // Kigali bounding box (minlon,minlat,maxlon,maxlat)
-          bounded: 0  // Prioritize Kigali but allow other results
+          countrycodes: 'rw'  // Limit to Rwanda - uses current names from OSM
         },
         headers: {
           'User-Agent': 'Rwanda-Smart-Routes/1.0'
@@ -408,15 +359,7 @@ const geocodingService = {
       });
 
       if (response.data && response.data.length > 0) {
-        // Prioritize results in Kigali bounding box for better accuracy
-        const kigaliResults = response.data.filter(p => {
-          const lat = parseFloat(p.lat);
-          const lng = parseFloat(p.lon);
-          return lat >= -2.0 && lat <= -1.8 && lng >= 29.9 && lng <= 30.2;
-        });
-        
-        // Use Kigali result if available, otherwise use first result
-        const place = kigaliResults.length > 0 ? kigaliResults[0] : response.data[0];
+        const place = response.data[0];
         const address = place.address || {};
         const addressParts = [
           address.road,

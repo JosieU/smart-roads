@@ -25,25 +25,9 @@ const dashboardSessions = new Map();
 
 const PORT = process.env.PORT || 5000;
 
-// Configure CORS - Allow all Vercel deployment URLs
+// Configure CORS - Allow all origins for Vercel serverless
 app.use(cors({
-  origin: function (origin, callback) {
-    // Allow requests with no origin (mobile apps, Postman, etc.)
-    if (!origin) return callback(null, true);
-    
-    // Allow localhost for development
-    if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
-      return callback(null, true);
-    }
-    
-    // Allow all Vercel deployment URLs (production and preview deployments)
-    if (origin.includes('vercel.app') || origin.includes('smart-roads')) {
-      return callback(null, true);
-    }
-    
-    // Default: allow the request
-    callback(null, true);
-  },
+  origin: true,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
@@ -63,29 +47,32 @@ const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 // Place search (autocomplete)
 app.get('/api/places/search', async (req, res) => {
-  const { q } = req.query;
-  
-  if (!q) {
-    return res.status(400).json({ error: 'Query parameter "q" is required' });
-  }
-
-  const queryLower = q.toLowerCase().trim();
-  
-  // Check cache first
-  const cacheKey = queryLower;
-  const cached = searchCache.get(cacheKey);
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-    console.log(`Cache hit for: ${q}`);
-    return res.json({ places: cached.results });
-  }
-
   try {
-    console.log(`Searching for: ${q}`);
+    const { q } = req.query;
+    
+    if (!q || typeof q !== 'string') {
+      return res.json({ places: [] });
+    }
+
+    const queryLower = q.toString().toLowerCase().trim();
+    
+    if (!queryLower || queryLower.length < 1) {
+      return res.json({ places: [] });
+    }
+    
+    // Check cache first
+    const cacheKey = queryLower;
+    const cached = searchCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+      return res.json({ places: cached.results || [] });
+    }
+
+    // Search for places
     const results = await geocodingService.searchPlaces(q);
     
     // Cache the results
     searchCache.set(cacheKey, {
-      results: results,
+      results: Array.isArray(results) ? results : [],
       timestamp: Date.now()
     });
     
@@ -99,20 +86,10 @@ app.get('/api/places/search', async (req, res) => {
       }
     }
     
-    res.json({ places: results });
+    res.json({ places: Array.isArray(results) ? results : [] });
   } catch (error) {
     console.error('Place search error:', error);
-    console.error('Error stack:', error.stack);
-    
-    // Return more detailed error in development, generic in production
-    const errorMessage = process.env.NODE_ENV === 'development' 
-      ? `Failed to search places: ${error.message}`
-      : 'Failed to search places. Please try again.';
-    
-    res.status(500).json({ 
-      error: errorMessage,
-      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
-    });
+    res.json({ places: [] });
   }
 });
 
@@ -154,7 +131,7 @@ app.post('/api/routes/refresh-traffic', async (req, res) => {
       if (segment.geometry && segment.geometry.length > 0) {
         const reportMap = new Map();
         for (const point of segment.geometry) {
-          const nearbyReports = await roadReports.getReportsNearLocation(point.lat, point.lng, 200);
+          const nearbyReports = roadReports.getReportsNearLocation(point.lat, point.lng, 200);
           nearbyReports.forEach(r => {
             const key = r.id || JSON.stringify(r);
             if (!reportMap.has(key)) {
@@ -167,12 +144,12 @@ app.post('/api/routes/refresh-traffic', async (req, res) => {
       
       // PRIORITY 2: Match by roadId
       if (reports.length === 0) {
-        reports = await roadReports.getReportsForRoad(segment.roadId);
+        reports = roadReports.getReportsForRoad(segment.roadId);
       }
       
       // PRIORITY 3: Match by street name
       if (reports.length === 0 && segment.roadName) {
-        reports = await roadReports.getReportsByStreetName(segment.roadName);
+        reports = roadReports.getReportsByStreetName(segment.roadName);
       }
       
       // Filter recent reports (within last 10 minutes)
@@ -187,7 +164,7 @@ app.post('/api/routes/refresh-traffic', async (req, res) => {
       let historicalMessage = null;
       
       if (recentReports.length === 0) {
-        historicalPattern = await roadReports.getHistoricalPattern(
+        historicalPattern = roadReports.getHistoricalPattern(
           segment.roadId,
           segment.roadName,
           currentDayOfWeek,
@@ -215,7 +192,7 @@ app.post('/api/routes/refresh-traffic', async (req, res) => {
         historicalMessage: historicalMessage,
         hasLiveData: recentReports.length > 0
       };
-    }));
+    });
     
     // Calculate traffic summary
     const heavyCount = routeReports.filter(seg => seg.reportSummary && seg.reportSummary.heavy > 0).length;
@@ -1159,12 +1136,20 @@ app.get('/api/test/db', async (req, res) => {
   }
 });
 
+// Global error handler - MUST be before React app route
+app.use((err, req, res, next) => {
+  console.error('Global error handler:', err);
+  console.error('Error stack:', err.stack);
+  res.status(500).json({ error: 'Internal server error' });
+});
+
 // Serve React app for all non-API routes (production only)
 if (process.env.NODE_ENV === 'production') {
   app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, '../client/build/index.html'));
   });
 }
+
 
 // Export for Vercel serverless functions
 // Vercel expects the Express app to be exported directly
